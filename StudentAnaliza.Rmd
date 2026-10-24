@@ -1,0 +1,395 @@
+---
+title: "StudentAnaliza"
+author: "Marko Galavić"
+date: "31.5.2026."
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Aktivacija svih potrebnih biblioteka za početak rada analize dataseta
+```{r}
+library(psych)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(readxl)
+library(janitor)
+library(stringr)
+library(tibble)
+library(rstatix)
+library(DescTools)
+library(ggplot2)
+```
+
+
+Učitavanje dataseta koristeći .csv datoteku uzetu sa Kaggle-a
+```{r}
+stud_perf_fact <- read.csv("StudentPerformanceFactors.csv")
+head(stud_perf_fact,20)
+```
+Dataset se sastoji od 20 varijabli i 6607 opažanja.
+```{r}
+summary(is.na(stud_perf_fact))
+```
+Dataset nema nepostojećih vrijednosti.
+```{r}
+str(stud_perf_fact)
+```
+Pregled svih jedinstvenih (unikatnih) vrijednosti varijabli tipa karakter (chr)
+
+Pojednostavljenje naziva varijabli dataseta koristeći "janitor" biblioteku za lakši daljnji rad.
+```{r}
+stud_perf_fact <- janitor::clean_names(stud_perf_fact)
+names(stud_perf_fact)
+```
+Pretvaranje svih varijable u tipove prikladnima za početak analize.
+
+```{r}
+stud_perf_fact$hours_studied <- as.numeric(stud_perf_fact$hours_studied)
+stud_perf_fact$attendance <- as.numeric(stud_perf_fact$attendance)
+stud_perf_fact$parental_involvement <- factor(stud_perf_fact$parental_involvement, levels = c("Low", "Medium","High"), ordered=TRUE)
+stud_perf_fact$access_to_resources <- factor(stud_perf_fact$access_to_resources, levels = c("Low","Medium","High"), ordered=TRUE)
+stud_perf_fact$extracurricular_activities <- factor(stud_perf_fact$extracurricular_activities, levels =c("No", "Yes"), ordered=TRUE)
+stud_perf_fact$sleep_hours <- as.numeric(stud_perf_fact$sleep_hours)
+stud_perf_fact$previous_scores <- as.numeric(stud_perf_fact$previous_scores)
+stud_perf_fact$motivation_level <- factor(stud_perf_fact$motivation_level, levels = c("Low","Medium","High"), ordered=TRUE)
+stud_perf_fact$internet_access <- factor(stud_perf_fact$internet_access, levels = c("No","Yes"), ordered=TRUE)
+stud_perf_fact$tutoring_sessions <- as.numeric(stud_perf_fact$tutoring_sessions)
+stud_perf_fact$family_income <- factor(stud_perf_fact$family_income, levels = c("Low","Medium","High"), ordered=TRUE)
+stud_perf_fact$teacher_quality <- factor(stud_perf_fact$teacher_quality, levels =c("Low","Medium","High"), ordered=TRUE)
+stud_perf_fact$school_type <- factor(stud_perf_fact$school_type, levels = c("Public","Private"), ordered=FALSE)
+stud_perf_fact$peer_influence <- factor(stud_perf_fact$peer_influence, levels=c("Negative", "Positive"),ordered=TRUE)
+stud_perf_fact$physical_activity <- as.numeric(stud_perf_fact$physical_activity)
+stud_perf_fact$learning_disabilities <- factor(stud_perf_fact$learning_disabilities, levels = c("No","Yes"),ordered=FALSE)
+stud_perf_fact$parental_education_level <- factor(stud_perf_fact$parental_education_level, levels = c("High School", "College", "Postgraduate"), ordered=TRUE)
+stud_perf_fact$distance_from_home <- factor(stud_perf_fact$distance_from_home, levels = c("Near", "Moderate", "Far"), ordered=TRUE)
+stud_perf_fact$gender <- factor(stud_perf_fact$gender, levels = c("Male","Female"),ordered=FALSE)
+stud_perf_fact$exam_score <- as.numeric(stud_perf_fact$exam_score)
+```
+
+# - Usporedni prikaz box-plota za `stud_perf_fact$hours_studied` grupirane po `stud_perf_fact$exam_score`.
+
+Može se primijetiti donelke jednaki tred potrebnih provedenih sati učenja ovisno o razini obrazovanja roditelja, uzeći u obzir nekolicinu oulier-a, medijalna vrijednost provednih sati je 20 kod koje 50% učenika/ca provede minimum 1 do 20 sati dok ostalih 50% provede minimalno 20 do 35 sati, interkvartilni raspon je jednak. Jedina razlika je broj ekstrema opažanja sortirano po razini obrazovanja roditelja.
+```{r}
+boxplot(stud_perf_fact$hours_studied ~ stud_perf_fact$parental_education_level,
+        main = "Potrebno učenje ovisno o razini obrazanja roditelja",
+        xlab = "Razina obrazovanja roditelja",
+        ylab = "Sati provedi učenja")
+```
+
+# Pokazatelji deskriptivne statistike
+
+Osnovni prikaz deskriptivne statistike navedenog dataseta za dobivanje okvirnog uvida na osnovne vrijednosti, asimetriju i nagib. Pošto nas neće zanimati sve vrijednosti, sažeti ću tablicu prikaza za jednostavnije čitanje. Za varijable označene zvijezicom na kraju naziva, nije smisleno vršiti deskriptinu statistiku jer su kvalitativne varijable, faktori.
+
+Učenici su prosječno proveli 19.98 sati učeći uz standardnu devijaciju od 5.99 sati, prvih 50% učenika/ca je učilo od minimalno 1 sat do 20 sati, ostalih 50% učenika/ca su proveli od 20 do 44 sati učeći, uzeći u obzir skewness od 0.01, može se zaokružiti da su vrijednosti simetrične. Učenici su prosječno bili na 79.98 predavanja uz odstupanje od 11.55 predavanja, 50% učenika/ca je bilo minimalno na 60 predavanja do 80 predavanja, ostalih 50% je bilo od 80 do 100 sati predavanja, uzeći u obzir skewness od 0.01, može se zaokružiti da su vrijednosti simetrične. Učenici su prosječno spavali 7.03 sati uz standardno odstupanje od 1.47 sati, 50% učenika/ca je smavalo najmanje 4 do 7 sati, ostalih 50% učenika/ca je spavalo od 7 sve do maksimalno punih 10 sati, uzeći u obzir skewness od -0.02, može se zaokružiti da su vrijednosti simetrične. Prosječna vrijednost ostvarenog uspijeha na prijašnjem testu je bila 75.07 bodova uz standardnu devijaciju od 14.40 bodova, 50% učenika/ca je dobilo između 50 do 75 bodova, ostalih 50% je dobilo od 75 do maksimalnih 100 bodova, uzeći u obzir skewness od 0.00, može se zaokružiti da su vrijednosti simetrične. Prosječni broj sati obrađenih konzultacija sa učiteljem je 1.49 sati uzeći u obzir odstupanje od 1.23 sati, 50% učenika/ca je provelo između 0 do 1 sat konzultacija dok drugih 50% učenika/ca je provelo 1 do 8 sati konzultacija, uzeći u obzir skewness od -0.82, može se zaokružiti da su vrijednosti negativno asimetrične.
+```{r}
+library(psych)
+describe(stud_perf_fact[ , c(1,2,7)])[, c(3:5, 8, 9, 11, 12)]
+```
+######
+
+Prikaz dimenzija dataseta.
+```{r}
+dim(stud_perf_fact)
+```
+
+# Ulazimo u početak inferencijalne statistike sa uzorkovanjem
+
+Pošto dataset ima jako puno opažanja, daje nam se dobra prilika uzimanja uzorka primjerene veličine (prateći standardna pravila za veličinu uzorka, 385 je dovoljno ako imamo populaciju od ili veše od 1000000). Uzimamo uzak veličine od 364 opažanja i svih 20 varijabli.
+```{r}
+set.seed(123)
+uzorak_stud_364 <- stud_perf_fact[sample(1:nrow(stud_perf_fact), 364),]
+dim(uzorak_stud_364)
+head(uzorak_stud_364)
+```
+
+Pregled deskriptivne analize uzorka
+```{r}
+describe(uzorak_stud_364)[, c(3:5, 8, 9, 11, 12)]
+```
+
+Histogram prikaza rezultata prijašnjeg testa i nedavnog testa. Primijećuje po promijeni skale grafova da su prijašnji rezultati bili lošiji od nedavnog testa.
+```{r}
+hist(uzorak_stud_364$previous_scores, main="Prijašnji rezultati", xlab = "Bodovi")
+hist(uzorak_stud_364$exam_score, main="Nedavni rezultati", xlab= "Bodovi")
+```
+
+Histogram prikaza provedenih sati učenja s obzirom na motiviranost
+```{r}
+ggplot(uzorak_stud_364, aes(x = exam_score)) +
+  geom_histogram() +
+  facet_wrap(~ motivation_level)
+```
+
+Utjecaj veličine uzorka
+```{r}
+set.seed(123)
+uzorak_stud_600 <- stud_perf_fact[sample(1:nrow(stud_perf_fact), 600),]
+dim(uzorak_stud_600)
+```
+Mogu se primijetiti sitne promjene u vrijednostima deskriptivne statistike, koje ne utječu puno na već opisano objašnjenje prijašnjeg uzorka. 
+```{r}
+describe(uzorak_stud_600)[, c(3:5, 8, 9, 11, 12)]
+```
+
+Provjera normalnosti distribucije nekolicine varijabli prvog uzorka (uzorak_stud_364) koristeći Shapiro-Wilk test. Primijećuje se da varijabla "hours_studied" zadovoljava test normalnosti za razliku od varijabli "attendance", "sleep_hours" i "exam_score"
+```{r}
+shapiro_test(uzorak_stud_364$hours_studied)
+shapiro_test(uzorak_stud_364$attendance)
+shapiro_test(uzorak_stud_364$sleep_hours)
+shapiro_test(uzorak_stud_364$exam_score)
+```
+# Testiranje hipoteza
+
+1. hipoteza:
+H0 - ne postoji veza u prosječnoj udaljenosti od škole i završnih rezultata na ispitu.
+H2 - postoji veza u prosječnoj udaljenosti od škole i završnih rezultata na ispitu.
+```{r}
+#cor(uzorak_stud_364$exam_score, uzorak_stud_364$distance_from_home, method = "pearson")
+#cor(uzorak_stud_364$exam_score,uzorak_stud_364$distance_from_home, method = "spearman")
+```
+
+
+Ovisno o normalnosti distribucija, odabirati će se prikladni parametrijski i neparametrijski testovi.
+
+2. hipoteza: NEOVISNOST
+H0 - varijabla "attendance" i "parental_involvement" su neovisne.
+H1 - varijabla "attendance" i "parental_involvement" su zavisne.
+
+Sljedeće po redu je pitanje - jesu li varijable "attendance" i "parental_involvement" međusobno nezavisne. S obzirom da se radi o kvalitativnim varijablama, na ovakva pitanja odgovaramo Hi-kvadrat testom neovisnosti.
+
+Tablica kontingencije "attendance" & "parental_involvement"
+```{r}
+table(uzorak_stud_364$attendance, uzorak_stud_364$parental_involvement)
+```
+
+```{r}
+chisq.test(uzorak_stud_364$attendance, uzorak_stud_364$parental_involvement)
+```
+Uzeći u obzir mogućnost sitne pogreške aproksimacije rezultata testa i primijećujući X^2 vrijednosti 91.095 i p vrijednosti 0.1863 (veće od 0.001) odbija se alternativna hipoteza. Na razini značajnosti 5% prihvaća se pretpostavka da su varijable broj prisustava i razine roditeljskog utjecaja međusobno neovisne. Zaključuje se da su ove varijable međusobno nezavisne.
+
+3. hipoteza: ANOVA/KRUSKAL-WALLIS
+H0 - ne postoji razlika u razini REZULTATA S OBZIROM NA RAZINU školovanja roditelja 
+
+H1 - postoji razlika u razini REZULTATA S OBZIROM NA RAZINU školovanja roditelja
+
+```{r}
+kruskal_test(uzorak_stud_364, uzorak_stud_364$exam_score ~ uzorak_stud_364$parental_education_level)
+```
+U paketu `rstatix` na raspolaganju je i funkcija `kruskal_effsize()` kojom se utvrđuje veličina efekta ($\eta^2$).
+```{r}
+kruskal_effsize(uzorak_stud_364, uzorak_stud_364$exam_score ~ uzorak_stud_364$parental_education_level)
+```
+Na raspolaganju je i Dunnov post-hoc test (prikladan za korištenje kao post-hoc za Kruskal-Wallis test, ako podaci nisu upareni).
+```{r}
+DescTools::DunnTest(uzorak_stud_364$exam_score ~ uzorak_stud_364$parental_education_level)
+```
+Boxplot prikaz
+```{r}
+boxplot(uzorak_stud_364$exam_score ~ uzorak_stud_364$parental_education_level, data = uzorak_stud_364, main="Rezultati s obzirom na školovanje roditelja", xlab="Razina roditeljskog obrazovanja", ylab="Učenički bodovi")
+```
+
+4. hipoteza:
+H0 - ne postoji statistički značajna razlika u utjecaju društva i poteškoće u učenju međusobno su neovisne varijable.
+
+H1 - postoji statistički značajna razlika u utjecaju društva s obzirom na poteškoće učenja učenika/ca.
+
+Tablica kontingencije "peer_influence" & "learning_disabilities"
+```{r}
+table(uzorak_stud_364$peer_influence, uzorak_stud_364$learning_disabilities)
+```
+Odmah uvidom u tablicu se ne može primijetiti određeni društveni utjecaj na učenika ovisno dali ima poteškoća sa učenjem ili ne. Naravno slijedi konkretan službeni test da potvrdimo ili odbijemu ovo opažanje.
+```{r}
+chisq.test(uzorak_stud_364$peer_influence, uzorak_stud_364$learning_disabilities)
+```
+Hi-kvadrat test neovisnosti potrđuje naše opažnje i s time se prihvaća nul-hipoteza o neovisnoti i zalkjučuje se ovisnot dviju varijabli uzeći u obzir dobivene vrijednosti X^2 (0.1683) i p-vrijednosti 0.681.
+
+5. hipoteza:
+H0 - resursi su podjednako dostupno učenicima prema razinama obiteljskog dohotka.
+H1 - resursi nisu podjednako dostupno učenicima prema razinama obiteljskog dohotka.
+
+Za navedenu 5. hipotezu koristiti test homogenosti nazvan F*test. Prvo, tablica kontingencije varijabli 'access_to_resourses' i 'family_income'.
+```{r}
+table(uzorak_stud_364$access_to_resources, uzorak_stud_364$family_income)
+```
+Naravno, na tablici se jasno primijete vrijednosti koje govore kako veći obitljski dohotak omogućuje veću dostupnost reursima učenicima uz pojedine iznimke.
+
+```{r}
+chisq.test(uzorak_stud_364$access_to_resources, uzorak_stud_364$family_income)
+```
+Kroz provedeni Hi-kvadrat test homogenosti, primijećuje se da možemo prihvatiti nul-hipotezu koja glasi da nepostoji homogenost između nevedenih dviju varijbli i odbija se alternativna hipoteza koja glasi da homogenost postoji.
+
+# Jednostruka linearna regresija
+Jednostavna linearna regresija omogućuje nam da kvantificiramo i predvidimo odnos između dvije varijable kroz jednadžbu pravca. Pomaže nam otkriti koliko promjene u jednoj varijabli (nezavisnoj) vode do promjena u drugoj (zavisnoj), što je ključan korak u razumijevanju povezanosti pojava.
+
+Pri izračunu parametara modela linearne regresije koristi se metoda najmanjih kvadrata, koja omogućuje utvrđivanje takvog regresijskog pravca za koji vrijedi da je suma kvadratnih odstupanja opažanja od pripadajućih vrijednosti predviđenih pravcem najmanja. 
+
+1. model - interte_access i previus_scores
+```{r}
+jlr_model1<-lm(uzorak_stud_364$previous_scores ~ uzorak_stud_364$internet_access, data= uzorak_stud_364)
+jlr_model1
+```
+
+Kao što vidimo, dobivamo $\beta_0=73.879$ (odječak na $y$ osi; na engleskom se često krosti izraz *intercept*) i $\beta_1=3.492$ pa je jednadžba regesijskog pravca
+$$y=73.879 + 3.492\cdot x.$$
+```{r}
+summary(jlr_model1)
+```
+Tako možemo uočiti retke koji opisuju koeficijente regresije te ponovno vidjeti same vrijednosti koeficijenata β0
+ i β1, ali i standardne pogreške njihove procjene. Na kraju tih redaka uočavamo i p-vrijednosti.
+Pogledajmo donji dio tablice. Tamo prije svega nalazimo rezidualnu standardnu pogrešku RSE koja iznosi 14.35. Sjetimo se, RSE je procjena standardne devijacije od ε. Dobivenu vrijednost možemo interpretirati na način da se je stvarni rezultat prošlog ispita razlikovati od regresijskog pravca u prosjeku za 14.35 bodova.
+
+Nadalje vidimo da je R2=0.008927.Taj broj interpretiramo tako da zaključimo da se oko 0.08% varijabilnosti prijašnjih bodva može objasniti linearnom regresijom na dostupnost interneta. U principu je taj postotak dosta velik, iako nemamo neko egzaktno pravilo kojim bismo postavili granice “velike” ili “male” vrijednosti od R2.
+
+Pogledom na dobivena svojstva modela, zaključujemo da odbacujemo model.
+
+Breusch-Paganov test - s obzirom da je kod ovog testa nul-hipoteza ona o homoskedastičnosti (varijanca reziduala je konstantna), vrlo mala p-vrijednost indicira da nul-hipotezu možemo odbaciti
+```{r}
+library(lmtest)
+
+```
+Zaključak tog testa, kao i uvid u reziduale na prvom i trećem od prethodna četiri grafa upućuju ne heteroskedastičnost reziduala, odnosno heteroskedastičnost slučajnih pogrešaka εi. Dakle, neke od osnovnih pretpostavki za provođenje linearne regresije u ovom slučaju nisu zadovoljene.
+
+Nacrtajmo na jednom grafu podatke i regresijski pravac zajedno. Ovo zapravo može biti početak regresijske analize, ali smo u prethnodnom dijelu teksta malo vremena posvetili proučavanju podataka da steknemo uvid u njihovu strukturu. 
+
+```{r}
+plot(uzorak_stud_364$internet_access, uzorak_stud_364$previous_scores, main="Regresijski pravac", xlab="Dostupnost internetu", ylab="Bodovi prošlog testa")
+abline(jlr_model1, col="blue3")
+```
+
+Kroz boxplot usporedbe mogu se vidjeti razlike interkvartilnog raspona, također i malo veči udio boljih rezultata prošle provjere znanja kod učenika/ca koji imaju pristup internetu.
+
+
+2. model - exam_score i hours_studied
+```{r}
+jlr_model2<-lm(uzorak_stud_364$exam_score ~ uzorak_stud_364$hours_studied, data= uzorak_stud_364)
+jlr_model2
+```
+Dobivamo $\beta_0=82.1104$ i $\beta_1=-0.5855$ pa je jednadžba regesijskog pravca
+$$y=82.1104 + (-0.5855)\cdot x.$$
+```{r}
+summary(jlr_model2)
+```
+
+```{r}
+plot(uzorak_stud_364$hours_studied, uzorak_stud_364$exam_score, main="Regresijski pravac", xlab="Sati učenja", ylab="Bodovi")
+abline(jlr_model2, col="blue3")
+```
+
+Nažalost, pošto je veći broj varijabli kvalitativne prirode, ovdje se prestaje rad nad jednostavnoj linearnoj regresiji. Da bih se mogla nastaviti analiza potrebno je korištenje drugih vrsta regresija, poput višestruke linearne regresije i logistička regresija.
+
+# Višestruka linearna regresija
+U modelu jednostavne linearne regresije pokušavamo vrijednost slučajne varijable Yobjasniti vrijednostima jedne slučajne varijable X, korištenjem linearnog modela, naravno. Dosta je jasno da je to prilično ograničavajuće svojstvo jednostavne linearne regresije jer su u stvarnosti utjecaji na varijablu Y često višestruki. Stoga se prirodno nameće ideja da pokušamo proširiti taj model dodatnim nezavisnim varijablama. Na taj način dolazimo do višestruke linearne regresije.
+Za provođenje višestruke linearne regresije, za promijenu ćemo koristiti veći uzorak (uzorak od 600 opažanja).
+
+1. model - Utjecaj provedenih sati učenja, sati spavanja i sati konzultacija na rezultate ispita
+```{r}
+vlr_model1<-lm(exam_score ~ hours_studied + sleep_hours + tutoring_sessions, data= uzorak_stud_600)
+summary(vlr_model1)
+```
+
+Vidimo da dobivamo regresijsku jednadžbu (sada hiperravnine, ne više pravca)
+$$\hat{y}=61.13 + 0,328\cdot x_1 + (-0.1459)\cdot x_2 + 0.449 \cdot x_3,$$
+Primijećuje se da varijable "hours_studied" i "tutoring_sessions" imaju najveću značajnost što se isčitava brojem zvijezdica nakon svake vrijednosti koeficijenta, što nam dalje govori da se može i izbaciti "sleep_hours" iz modela.
+Nadalje vidimo da je R2=0.232.Taj broj interpretiramo tako da zaključimo da se oko 0.23% varijabilnosti prijašnjih bodva može objasniti višestrukom linearnom regresijom, nešto bolji rezultat od jednostavne linearne regresije, ali ništa značajno.
+Ponovno, model se odbacuje. što nam govori da niti jednostavna ni višestruka linearna regresija nije korisna za ovaj dataset.
+
+2. model višestruke linearne regresije - dali učenik/ca treba više učiti ovisno o provedenim satima konzultacija u školi, prisutnosti na nastavi i fizičkim aktivnostima. Cilj je objasniti dali navedene nezavisne varijable pomažu u smanjenju vrijednosti potrebe učenja doma (zavisne varijable). 
+```{r}
+vlr_model1<-lm(hours_studied ~ tutoring_sessions + attendance + physical_activity, data= uzorak_stud_600)
+summary(vlr_model1)
+```
+Dobivena regresijska jednadžba:
+$$\hat{y}=17.50 + 0,229\cdot x_1 + 0.026\cdot x_2 + 0.026 \cdot x_3 - 0.120 \cdot x_4,$$
+
+# Logistička regresija i klasifikacija
+U prethodnom poglavlju smo promatrali problem regresije, odnosno situacije u kojima želimo na temelju jedne ili više varijabli prediktora procijeniti vrijednost neke kvantitativne odzivne varijable Y. U praksi se vrlo često susrećemo sa situacijama u kojima odzivna varijabla Y nije numerička, nego kvalitativna. Tada govorimo o problemima klasifikacije. I naravno uzeći u obzir većinu varijabli da spadaju pod kvalitativnu vrstu varijabli.
+
+Prije samog početka rada klasifikacije, bitno je za navesti klasifikacijska tablica i mjere kvalitete klasifikacije.
+
+|  | stvarna ne | stvarna da |
+|----------|----------|----------|
+| predivđena ne    | TN  | FN  |
+| predviđena da    | FP  | TP  |
+
+Klasifikacijska tablica nam služi za određivanje točnosti ("Accuracy"), osjetljivosti ("Sensitivity") i specifičnosti ("Specificity") koristeći varijable:<br>
+TP - broj opažanja ispravno svrstanih u klasu da (true positives)<br>
+TN - broj opažanja ispravno svrstanih u klasu ne (true negatives)<br>
+FP - broj opažanja pogrešno svrstanih u klasu da (false positives)<br>
+FN - broj opažanja pogrešno svrstanih u klasu ne (false negatives)<br>
+
+1. model - predikcija prolazaka učenika/ce na ispitu ovisno o broju sati učenja, prisutnosti i prijašnjim rezultatima
+```{r}
+uzorak_stud_600$pass <- ifelse(uzorak_stud_600$exam_score >= 70, 1, 0)
+uzorak_stud_600$pass <- as.factor(uzorak_stud_600$pass)
+```
+
+```{r}
+log_model1 <- glm(
+  pass ~ hours_studied + attendance + previous_scores, data = uzorak_stud_600,
+  family = binomial
+)
+summary(log_model1)
+```
+
+```{r}
+p1 <- predict(log_model1, type = "response")
+pred_class <- ifelse(p1 > 0.5, "Yes", "No")
+table(pred_class, uzorak_stud_600$pass)
+```
+Ako izračunamo ukupnu točnost klasifikacije, dobivamo
+$$\frac{418+109}{600}=0.8781,$$
+dakle osjetljivost, jednaka je
+$$\frac{109}{109+42}\approx 0.7218,$$
+S druge strane, vrlo je uspješan u prepoznavanju učenika/ca koje nisu prošle. To mjerimo specifičnošću modela i u ovom slučaju dobivamo
+$$\frac{418}{418+31}\approx 0,9309.$$
+Vizulani prikazi
+```{r}
+par(mfrow = c(2, 2))
+plot(log_model1)
+```
+Na prvom grafu (Residuals vs Fitted) na osi x više nemamo procijenjene vjerojatnosti, nego procijenjene vrijednosti linearnog prediktora, odnosno logita. Na osi y prikazani su Pearsonovi reziduali. Budući da je odziv binaran, prirodno je da se opažanja rasporede u dva karakteristična pojasa, pa ovdje ne očekujemo isti tip “oblaka točaka” kao kod linearne regresije. Više nas zanima postoje li opažanja s osobito velikim rezidualima ili neki dodatni sustavni obrazac koji bi upućivao na lošu prilagodbu modela. Uočimo da bi “savršen” model imao sve reziduale blizu nule.
+
+Na drugom grafu (Normal Q-Q) prikazani su standardizirani deviance reziduali uspoređeni s teorijskim kvantilima. Ovaj graf u logističkoj regresiji ne služi za provjeru pretpostavke normalnosti reziduala, jer takva pretpostavka ovdje nije dio modela. Umjesto toga, koristan je za uočavanje opažanja s neuobičajeno velikim rezidualima, odnosno opažanja koja model posebno loše opisuje.
+
+Treći graf (Scale-Location) također ne tumačimo kao provjeru homoskedastičnosti u smislu linearne regresije, jer varijanca ovdje prirodno nije konstantna. Taj graf može pomoći pri uočavanju eventualnih nepravilnosti u raspršenosti reziduala, ali ga ne treba promatrati kao formalni test konstantne varijance.
+
+Četvrti graf (Residuals vs Leverage) pomaže pri prepoznavanju opažanja koja imaju velik utjecaj na procijenjeni model. Posebno su zanimljiva opažanja s velikim leverageom i velikom Cookovom udaljenošću, jer takve točke mogu osjetno utjecati na procjene koeficijenata.
+
+2. model - nadogradnja prijašnjeg modela koji uključuje kategoričke prediktore
+```{r}
+log_model2 <- glm(
+  pass ~ hours_studied +
+    attendance +
+    previous_scores +
+    motivation_level +
+    internet_access +
+    family_income +
+    teacher_quality +
+    peer_influence +
+    gender,
+  data = uzorak_stud_600,
+  family = binomial
+)
+
+summary(log_model2)
+```
+
+```{r}
+p2 <- predict(log_model2, type = "response")
+pred_class <- ifelse(p2 > 0.5, "Yes", "No")
+#table(pred_class, uzorak_stud_600$pass)
+```
+
+Vizualni prikazi
+```{r}
+par(mfrow = c(2, 2))
+plot(log_model2)
+```
+
+# Zaključak
+
+Zaključno, analiza potvrđuje da je školski uspjeh složen fenomen na koji istodobno djeluju akademski, obiteljski i socijalni čimbenici. Nijedan pojedinačni faktor ne može dovoljno dobro objasniti ostvarene rezultate učenika, dok kombinacija više varijabli daje nešto kvalitetnije, ali i dalje ograničeno objašnjenje. Za preciznije modeliranje i predviđanje uspjeha učenika preporučuje se primjena naprednijih metoda strojnog učenja ili složenijih regresijskih modela koji mogu bolje obuhvatiti nelinearne i međusobne odnose među varijablama.
+
